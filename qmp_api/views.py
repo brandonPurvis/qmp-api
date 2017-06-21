@@ -1,20 +1,17 @@
 from flask import jsonify
 
-from qmp_api import app
-from qmp_api import connect_db
+from qmp_api import app, db
+from qmp_api.models import Channel
 
 
 @app.route('/channels')
 def channels():
-	db = connect_db(app)
-	result = db.execute('SELECT * FROM channels;')
-	results = result.fetchall()
 	channel_list = []
-	for result in results:
+	for channel in Channel.query.all():
 		channel_list.append({
-			'channel_id': result[0],
-			'name': result[1],
-			'image': result[2],
-			'description': result[3]
+			'channel_id': channel.id,
+			'name': channel.name,
+			'image': channel.image,
+			'description': channel.description,
 		})
 	return(jsonify({'items': channel_list}))
