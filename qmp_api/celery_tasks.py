@@ -1,6 +1,5 @@
-from qmp_api import app, celery
-from qmp_api import db, Channel
-from qmp_api import connect_db
+from qmp_api import app, celery, db
+from qmp_api.models import Channel
 from ytapi import YoutubeAPI, YoutubeChannel, YoutubeVideo
 
 

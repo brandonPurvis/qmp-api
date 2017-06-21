@@ -1,5 +1,5 @@
-import json
 from flask import jsonify
+
 from qmp_api import app
 from qmp_api import connect_db
 
