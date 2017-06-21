@@ -1,35 +1,36 @@
 from qmp_api import app, celery
+from qmp_api import db, Channel
 from qmp_api import connect_db
 from ytapi import YoutubeAPI, YoutubeChannel, YoutubeVideo
 
 
 @celery.on_after_configure.connect
 def setup_periodic_task(sender, **kwargs):
-	 sender.add_periodic_task(3600, poll_channels.s(), name='Poll Channels')
+	sender.add_periodic_task(3600, poll_channels.s(), name='Poll Channels')
 
 
 @celery.task
 def poll_channels():
 	ytapi = YoutubeAPI(app.config["YOUTUBE_DATA_API"])
-	db = connect_db(app)
+	subscriptions_response = ytapi.subscriptions(app.config["ROOT_CHANNEL_ID"])
 
-	current_subs = map(YoutubeChannel.from_api_response, ytapi.subscriptions(app.config["ROOT_CHANNEL_ID"]))
-	current_sub_ids = [c.channel_id for c in current_subs]
-	saved_sub_ids = [c[0] for c in db.execute('SELECT id from channels;').fetchall()]
+	retreived_subs = map(YoutubeChannel.from_api_response, subscriptions_response)
+	saved_subs = Channel.query.all()
 
-	new_channels = [c for c in current_subs if c.channel_id not in saved_sub_ids]
-	old_ids = [c for c in saved_sub_ids if c not in current_sub_ids]
+	retreived_sub_ids = [c.channel_id for c in retreived_subs]
+	saved_sub_ids = [channel.id for channel in saved_subs]
+
+	new_subs = [c for c in retreived_subs if c.channel_id not in saved_sub_ids]
+	old_subs = [c for c in saved_subs if c.id not in retreived_sub_ids]
 
 	# Add Channels not current saved
-	for channel in new_channels:
-		args = (channel.channel_id, channel.name, channel.image, channel.description)
-		db.execute('INSERT INTO channels VALUES (?, ?, ?, ?);', args)
+	for new_sub in new_subs:
+		sub = Channel.from_object(new_sub)
+		db.session.add(sub)
 
 	# Remove channels no longer in list
-	for channel_id in old_ids:
-		args = (channel_id,)
-		db.execute('DELETE FROM channels WHERE id=?', args)
+	for old_sub in old_subs:
+		db.session.delete(old_sub)
 
 	# Commit & close
-	db.commit()
-	db.close()
+	db.session.commit()

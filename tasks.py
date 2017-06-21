@@ -1,6 +1,10 @@
 import sqlite3.dbapi2 as sqlite3
 from invoke import task
 
+@task
+def create_db(ctx):
+	from qmp_api import db
+	db.create_all()
 
 @task
 def reset_db(ctx):
